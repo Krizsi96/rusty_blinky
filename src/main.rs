@@ -3,29 +3,28 @@
 
 use cortex_m::asm::nop;
 use cortex_m_rt::entry;
-use stm32f3::stm32f303;
 use panic_halt as _;
+use stm32f3xx_hal::{self as hal, prelude::*};
 
 #[entry]
 fn main() -> ! {
     // Taking ownership of the PAC's peripheral singleton
-    let mut peripherals = stm32f303::Peripherals::take().unwrap();
+    let p = hal::pac::Peripherals::take().unwrap();
 
     // Enable the clock for GPIOE peripheral on the AHB bus
-    let rcc = &peripherals.RCC;
-    rcc.ahbenr.modify(|_, w| w.iopeen().set_bit());
+    let mut rcc = p.RCC.constrain();
+    let mut gpioe = p.GPIOE.split(&mut rcc.ahb);
 
     // Configure the mode of the IO pin as output
-    let gpioe = &peripherals.GPIOE;
-    gpioe.moder.modify(|_, w| w.moder13().output());
+    let mut led = gpioe
+        .pe13
+        .into_push_pull_output(&mut gpioe.moder, &mut gpioe.otyper);
 
     // Toggle the LED via setting the output data register
-    let mut is_on: bool = true;
     loop {
-        gpioe.odr.modify(|_, w| w.odr13().bit(is_on));
+        led.toggle().unwrap();
         for _ in 0..500_000 {
             nop();
         }
-        is_on = !is_on;
     }
 }
