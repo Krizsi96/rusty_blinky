@@ -1,28 +1,40 @@
 #![no_std]
 #![no_main]
 
-use cortex_m::asm::nop;
 use cortex_m_rt::entry;
+use cortex_m::asm::nop;
 use panic_halt as _;
-use stm32f3xx_hal::{self as hal, prelude::*};
+use stm32f3_discovery::stm32f3xx_hal::prelude::*;
+use stm32f3_discovery::stm32f3xx_hal::pac;
+use stm32f3_discovery::leds::Leds;
+use stm32f3_discovery::switch_hal::ToggleableOutputSwitch;
 
 #[entry]
 fn main() -> ! {
     // Taking ownership of the PAC's peripheral singleton
-    let p = hal::pac::Peripherals::take().unwrap();
+    let device_peripherals = pac::Peripherals::take().unwrap();
 
     // Enable the clock for GPIOE peripheral on the AHB bus
-    let mut rcc = p.RCC.constrain();
-    let mut gpioe = p.GPIOE.split(&mut rcc.ahb);
+    let mut reset_and_clock_control = device_peripherals.RCC.constrain();
 
     // Configure the mode of the IO pin as output
-    let mut led = gpioe
-        .pe13
-        .into_push_pull_output(&mut gpioe.moder, &mut gpioe.otyper);
+    let mut gpioe = device_peripherals.GPIOE.split(&mut reset_and_clock_control.ahb);
+    let mut leds = Leds::new(
+        gpioe.pe8,
+        gpioe.pe9,
+        gpioe.pe10,
+        gpioe.pe11,
+        gpioe.pe12,
+        gpioe.pe13,
+        gpioe.pe14,
+        gpioe.pe15,
+        &mut gpioe.moder,
+        &mut gpioe.otyper,
+    );
 
-    // Toggle the LED via setting the output data register
+    // Toggle the LED
     loop {
-        led.toggle().unwrap();
+        leds.ld10.toggle().unwrap();
         for _ in 0..500_000 {
             nop();
         }
